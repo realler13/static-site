@@ -5,7 +5,7 @@ from static_to_public import static_to_public
 from generate_page import generate_pages_recursive
 
 def main():
-    # Get basepath from CLI argument, default to "/"
+    
     basepath = sys.argv[1] if len(sys.argv) > 1 else "/"
     
     print(TextNode("Some text", TextType.LINK, "https://www.boots.dev"))
