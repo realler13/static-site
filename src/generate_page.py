@@ -1,43 +1,63 @@
 import os
-
+import logging
 from pathlib import Path
 
 
 from block_markdown import markdown_to_html_node
 
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(levelname)s: %(message)s'
+)
 
-def generate_page(from_path, template_path, dest_path):
-    print(f" * {from_path} {template_path} -> {dest_path}")
-    from_file = open(from_path, "r")
-    markdown_content = from_file.read()
-    from_file.close()
-
-    template_file = open(template_path, "r")
-    template = template_file.read()
-    template_file.close()
-
-    node = markdown_to_html_node(markdown_content)
-    html = node.to_html()
-
-    title = extract_title(markdown_content)
+def generate_page(from_path, template_path, dest_path, basepath="/"):
+    logging.info(f"Generating page from {from_path} to {dest_path} using {template_path}")
+    
+    # Read the markdown file
+    with open(from_path, 'r') as source:
+        content = source.read()
+    
+    # Read the template
+    with open(template_path, 'r') as template_file:
+        template = template_file.read()
+    
+    # Convert markdown to HTML
+    htmlstring = markdown_to_html_node(content).to_html()
+    title = extract_title(content)
+    
+    # Replace placeholders in template
     template = template.replace("{{ Title }}", title)
-    template = template.replace("{{ Content }}", html)
+    template = template.replace("{{ Content }}", htmlstring)
+    
+    # Replace paths with basepath
+    template = template.replace('href="/', f'href="{basepath}')
+    template = template.replace('src="/', f'src="{basepath}')
+    
+    # Create destination directory and write file
+    dest_dir = os.path.dirname(dest_path)
+    if dest_dir:
+        os.makedirs(dest_dir, exist_ok=True)
+    
+    with open(dest_path, "w") as file:
+        file.write(template)
 
-    dest_dir_path = os.path.dirname(dest_path)
-    if dest_dir_path != "":
-        os.makedirs(dest_dir_path, exist_ok=True)
-    to_file = open(dest_path, "w")
-    to_file.write(template)
-
-def generate_pages_recursive(dir_path_content, template_path, dest_dir_path):
+def generate_pages_recursive(dir_path_content, template_path, dest_dir_path, basepath="/"):
     for filename in os.listdir(dir_path_content):
         from_path = os.path.join(dir_path_content, filename)
         dest_path = os.path.join(dest_dir_path, filename)
+        
         if os.path.isfile(from_path):
+            # Only process .md files
+            if not from_path.endswith('.md'):
+                logging.info(f"Skipping non-markdown file: {from_path}")
+                continue
+            
+            # Change .md extension to .html
             dest_path = Path(dest_path).with_suffix(".html")
-            generate_page(from_path, template_path, dest_path)
+            generate_page(from_path, template_path, dest_path, basepath)
         else:
-            generate_pages_recursive(from_path, template_path, dest_path)
+            # Recursively process subdirectories
+            generate_pages_recursive(from_path, template_path, dest_path, basepath)
 
 
 
